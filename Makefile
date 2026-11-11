@@ -157,6 +157,7 @@ application/chassis/chassis.c \
 modules/swerve/swerve_kinematics.c \
 application/cmd/robot_cmd.c \
 application/board_transport.c \
+application/chassis/chassis_motion.c \
 application/robot.c
 
 # ASM sources

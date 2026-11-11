@@ -12,7 +12,7 @@ try {
     $flags = @('-mcpu=cortex-m4', '-mthumb', '-mfloat-abi=soft', '-std=gnu11', '-O1',
         '-ffunction-sections', '-fdata-sections', '-DUSE_HAL_DRIVER', '-DSTM32F407xx',
         '-DARM_MATH_CM4', '-DDISABLE_LOG_SYSTEM=1')
-    $sources = @('tests/integration.c', 'tests/startup.s', 'modules/algorithm/controller.c',
+    $sources = @('tests/integration.c', 'tests/startup.s', 'application/chassis/chassis_motion.c', 'modules/algorithm/controller.c',
         'modules/message_center/message_center.c', 'modules/daemon/daemon.c',
         'modules/motor/DJImotor/dji_motor.c', 'modules/motor/power_control.c',
         'modules/swerve/swerve_kinematics.c', 'modules/super_cap/super_cap.c',

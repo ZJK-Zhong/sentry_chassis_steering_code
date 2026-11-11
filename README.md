@@ -15,4 +15,7 @@
 构建：`mingw32-make -j24`，产物 `build/sentry_chassis_steering_code.elf`。
 本工程需要同级云台项目成对使用；单板遥控继续使用已有 `Steering-drive-chassis`。
 
-模块职责、控制/调试隔离及本轮回归范围见[架构说明](ARCHITECTURE.md)。
+模块职责、命名注释规范、控制/调试隔离及回归范围见[架构说明](ARCHITECTURE.md)。
+
+旋转参考和坐标变换已独立为[运动处理](application/chassis/chassis_motion.md)，
+设备采集、执行保护和功率处理仍由底盘应用编排。

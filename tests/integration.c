@@ -177,8 +177,8 @@ static void all_feedback(void)
 {
     for (unsigned i = 0; i < 4; ++i)
     {
-        motor_frame(drive[i]->motor_can_instance, 100, 0);
-        motor_frame(steer[i]->motor_can_instance, zero_ecd[i], 0);
+        motor_frame(drive_motors[i]->motor_can_instance, 100, 0);
+        motor_frame(steering_motors[i]->motor_can_instance, steering_zero_encoders[i], 0);
     }
 }
 
@@ -202,7 +202,7 @@ static void check_stopped(void)
     CHECK(swerve_debug.mode == CHASSIS_ZERO_FORCE);
     for (unsigned i = 0; i < 8; ++i) CHECK(drive_frame[i] == 0 && steer_frame[i] == 0);
     for (unsigned i = 0; i < 4; ++i)
-        CHECK(drive[i]->stop_flag == MOTOR_STOP && steer[i]->stop_flag == MOTOR_STOP);
+        CHECK(drive_motors[i]->stop_flag == MOTOR_STOP && steering_motors[i]->stop_flag == MOTOR_STOP);
 }
 
 static void geometry_tests(void)
@@ -236,8 +236,36 @@ static void geometry_tests(void)
     host_call(4, "PASS: swerve vectors, reversal, multi-turn and zero hold\n");
 }
 
+/* Interleaved motion contexts keep distinct entry headings and rate ramps. */
+static void TestIndependentMotionContexts(void)
+{
+    ChassisMotionState_s first = {0};
+    ChassisMotionState_s second = {0};
+    Chassis_Ctrl_Cmd_s command = {0};
+    command.chassis_mode = CHASSIS_ROTATE;
+    command.mode = 3;
+    command.vx = 1000;
+    command.chassis_spin_speed = 1;
+    ChassisMotionReset(&first, &chassis_motion_config, 90);
+    ChassisMotionReset(&second, &chassis_motion_config, -45);
+    ChassisMotionUpdate(&first, &chassis_motion_config, &command, CHASSIS_ZERO_FORCE, 90, 0, 10);
+    command.chassis_spin_speed = -1;
+    ChassisMotionUpdate(&second, &chassis_motion_config, &command, CHASSIS_ZERO_FORCE, -45, 0, 10);
+    CHECK(first.spin_rate_reference_radps > 0 && second.spin_rate_reference_radps < 0);
+    CHECK(first.spin_reference_yaw_deg == 90 && second.spin_reference_yaw_deg == -45);
+    unsigned char second_snapshot[sizeof(second)];
+    memcpy(second_snapshot, &second, sizeof(second));
+    command.chassis_spin_speed = 1;
+    ChassisMotionUpdate(&first, &chassis_motion_config, &command, CHASSIS_ROTATE, 180, 0, 10);
+    CHECK(first.spin_reference_yaw_deg == 90);
+    CHECK(fabsf(first.forward_velocity_mmps) < 0.001f);
+    CHECK(fabsf(first.right_velocity_mmps - 1000) < 0.001f);
+    CHECK(memcmp(second_snapshot, &second, sizeof(second)) == 0);
+}
+
 void test_main(void)
 {
+    TestIndependentMotionContexts();
     geometry_tests();
     /* Same algorithm with another wheel size: the application supplies the ratio. */
     SwerveGeometry_s alternate = swerve_geometry;
@@ -248,15 +276,15 @@ void test_main(void)
     NEAR(alternate_target[0].speed_rpm, 30.0f / (CHASSIS_MOTOT_PER * SWERVE_DRIVE_REDUCTION), 0.01f);
     RobotCMDInit();
     ChassisInit();
-    memset(&swerve_debug, 0xff, sizeof(swerve_debug)); // Observe-only data must not drive the controller.
+    memset(&swerve_debug, 0xff, sizeof(swerve_debug)); // Observe-only data must not drive_motors the controller.
 #if SWERVE_COMMAND_SOURCE == SWERVE_COMMAND_SOURCE_LOCAL_RC
     CHECK(test_can_count == 9);
     for (unsigned i = 0; i < 4; ++i)
     {
-        CHECK(drive[i]->motor_can_instance->can_handle == &hcan1);
-        CHECK(drive[i]->motor_can_instance->rx_id == 0x201 + i);
-        CHECK(steer[i]->motor_can_instance->can_handle == &hcan2);
-        CHECK(steer[i]->motor_can_instance->rx_id == 0x205 + i);
+        CHECK(drive_motors[i]->motor_can_instance->can_handle == &hcan1);
+        CHECK(drive_motors[i]->motor_can_instance->rx_id == 0x201 + i);
+        CHECK(steering_motors[i]->motor_can_instance->can_handle == &hcan2);
+        CHECK(steering_motors[i]->motor_can_instance->rx_id == 0x205 + i);
     }
     step(100, 0, 0, RC_SW_MID, RC_SW_UP); check_stopped();
     step(100, 0, 0, RC_SW_DOWN, RC_SW_UP); check_stopped();
@@ -305,7 +333,7 @@ void test_main(void)
     test_tick += 21; all_feedback(); motor_task();
     for (unsigned i = 0; i < 8; ++i) CHECK(drive_frame[i] == 0 && steer_frame[i] == 0);
     step(100, 0, 0, RC_SW_MID, RC_SW_MID);
-    drive[0]->last_rx_ms = test_tick - 21;
+    drive_motors[0]->last_rx_ms = test_tick - 21;
     test_tick += 5; frame(0, 100, 0, RC_SW_MID, RC_SW_MID);
     RobotCMDTask(); ChassisTask(); motor_task(); check_stopped();
     step(100, 0, 0, RC_SW_MID, RC_SW_MID);
@@ -325,10 +353,10 @@ void test_main(void)
     CHECK(test_can[0]->rx_id == SWERVE_CHASSIS_CAN_RX_ID);
     for (unsigned i = 0; i < 4; ++i)
     {
-        CHECK(drive[i]->motor_can_instance->can_handle == &hcan1);
-        CHECK(drive[i]->motor_can_instance->rx_id == 0x201 + i);
-        CHECK(steer[i]->motor_can_instance->can_handle == &hcan2);
-        CHECK(steer[i]->motor_can_instance->rx_id == 0x205 + i);
+        CHECK(drive_motors[i]->motor_can_instance->can_handle == &hcan1);
+        CHECK(drive_motors[i]->motor_can_instance->rx_id == 0x201 + i);
+        CHECK(steering_motors[i]->motor_can_instance->can_handle == &hcan2);
+        CHECK(steering_motors[i]->motor_can_instance->rx_id == 0x205 + i);
     }
 
     step(0, 0, 0, 0, 0); check_stopped(); // Must receive one complete command before enabling movement.
@@ -352,7 +380,7 @@ void test_main(void)
     command.vx = NAN;
     memcpy(test_chassis_comm.unpacked_recv_data, &command, sizeof(command));
     test_chassis_comm.update_flag = 1;
-    step(0, 0, 0, 0, 0); check_stopped(); // Invalid values clear the held target.
+    step(0, 0, 0, 0, 0); check_stopped(); // Invalid values clear the held wheel_targets.
 
     test_chassis_comm_online = 0;
     step(0, 0, 0, 0, 0); check_stopped();

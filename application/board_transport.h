@@ -10,8 +10,8 @@
 /** @brief 板间接收观测副本；不作为解锁或运动判据，控制应使用读取接口的返回值。 */
 typedef struct
 {
-    uint8_t rx_online;    // 最近一次读取时，完整消息是否在有效期内。
-    uint32_t last_rx_ms;  // 完整CRC正确消息的实际接收时间，ms；首帧前为0。
+    uint8_t rx_online;   ///< 最近一次读取时，完整消息是否在有效期内。
+    uint32_t last_rx_ms; ///< 完整CRC正确消息的实际接收时间，ms；首帧前为0。
 } BoardTransportDebug_s;
 extern BoardTransportDebug_s board_link_debug;
 

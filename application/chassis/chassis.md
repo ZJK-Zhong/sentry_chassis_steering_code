@@ -46,15 +46,15 @@
 
 | 名称 | 作用 |
 | --- | --- |
-| `drive[4]` / `steer[4]` | 驱动/舵向电机实例，索引为左前、右前、右后、左后 |
-| `steer_feedback_deg[4]` | 编码器校零并修正方向后的多圈舵角，也是GM6020角度环反馈 |
-| `target[4]` | 解算结果缓存，全零速度时保留上一轮舵角目标 |
-| `motor_online` | 检查是否收到有效反馈，以及距最近一帧是否超时 |
-| `spin_reset` | 复位旋转PID、角速度参考和平移参考航向 |
-| `stop_all` | 将八电机置停止状态，复位目标缓存和旋转状态 |
-| `update_feedback` | 复制反馈、反算车体速度并读取INS状态 |
-| `command_valid` | 校验目标有限数、幅值和模式编码 |
-| `apply_targets` | 转换单位/方向、调用解算、限幅补偿并更新电机目标 |
+| `drive_motors[4]` / `steering_motors[4]` | 驱动/舵向电机实例，索引为左前、右前、右后、左后 |
+| `steering_feedback_deg[4]` | 编码器校零并修正方向后的多圈舵角，也是GM6020角度环反馈 |
+| `wheel_targets[4]` | 解算结果缓存，全零速度时保留上一轮舵角目标 |
+| `IsChassisMotorOnline` | 检查是否收到有效反馈，以及距最近一帧是否超时 |
+| `ResetChassisMotion` | 复位旋转PID、角速度参考和平移参考航向 |
+| `StopChassisMotors` | 将八电机置停止状态，复位目标缓存和旋转状态 |
+| `UpdateChassisFeedback` | 复制反馈、反算车体速度并读取INS状态 |
+| `IsChassisCommandValid` | 校验目标有限数、幅值和模式编码 |
+| `ApplyWheelTargets` | 转换单位/方向、调用解算、限幅补偿并更新电机目标 |
 
 ## 坐标、单位与轮序
 
@@ -73,7 +73,7 @@
 ## 小陀螺参考系
 
 本双板默认由云台发送mode=2：平移X正方向沿云台前方，使用Yaw机械相对角转换到车体系。
-仅本地回归分支mode=3使用进入模式时的底盘朝向，持续旋转时按INS相对入口航向转换。
+空上位板联调及本地回归分支mode=3使用进入模式时的底盘朝向，持续旋转时按INS相对入口航向转换。
 双板底盘执行云台按左右拨杆组合生成的模式，本地回归分支才保持左拨杆不影响模式。
 转速反馈修正控制旋转速度，不是位置或绝对航向闭环。
 
@@ -86,8 +86,8 @@ Watch入口：
 
 ```c
 swerve_debug
-drive[0]->measure
-steer[0]->measure
+drive_motors[0]->measure
+steering_motors[0]->measure
 ```
 
 对照 `wheel_target_rpm` / `wheel_actual_rpm` 和 `steering_target_deg` / `steering_actual_deg` 判断跟踪情况。
@@ -109,3 +109,8 @@ steer[0]->measure
 `chassis_state`是底盘应用的私有运行状态，模式、小陀螺参考与轮组目标均从此读取。
 `swerve_debug`仅由任务结束时的`PublishChassisDebug`复制，用于Watch；写入快照不会改变控制。
 复制不承诺跨字段原子一致，实时调试应以观测为主。
+
+## 运动模块边界
+
+旋转参考和坐标转换已拆至[chassis_motion](chassis_motion.md)。
+`ChassisTask`只编排反馈、保护、运动更新、轮组执行、功率更新和消息发布。

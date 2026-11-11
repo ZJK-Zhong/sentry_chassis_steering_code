@@ -13,11 +13,10 @@
  */
 typedef struct
 {
-    float center_to_wheel_m; // 底盘中心到轮心距离，m。
-    float wheel_perimeter_m; // 驱动轮周长，m。
-    float drive_reduction;  // 输出轴/转子转速比，无量纲。
+    float center_to_wheel_m; ///< 底盘中心到轮心距离，m。
+    float wheel_perimeter_m; ///< 驱动轮周长，m。
+    float drive_reduction;   ///< 输出轴/转子转速比，无量纲。
 } SwerveGeometry_s;
-
 
 /**
  * @brief 单个轮组的舵角和驱动转速目标
@@ -25,9 +24,9 @@ typedef struct
  */
 typedef struct
 {
-    float angle_deg;   // 与当前舵角连续的多圈目标，度。
-    float speed_rpm;   // 驱动电机转子目标转速，rpm，带方向。
-    uint8_t reversed;  // 为减少转向行程而反转驱动时为 1。
+    float angle_deg;  ///< 与当前舵角连续的多圈目标，度。
+    float speed_rpm;  ///< 驱动电机转子目标转速，rpm，带方向。
+    uint8_t reversed; ///< 为减少转向行程而反转驱动时为 1。
 } SwerveTarget;
 
 /**
@@ -41,16 +40,16 @@ float SwerveNormalizeRad(float angle);
 /**
  * @brief 计算四轮平移与旋转的合成速度，并选择舵向最短转动和驱动正反转
  * @param geometry 应用提供的有效几何与传动参数，只读且不可为NULL
- * @param vx 车体X向前速度，单位m/s
- * @param vy 车体Y向左速度，单位m/s，注意与应用层Y向右约定相反
- * @param wz_dps 俯视逆时针为正的车体旋转速度，单位度/秒
- * @param actual_deg 四轮校零后的实际多圈舵角，单位度，轮序为左前/右前/右后/左后
- * @param target 四轮目标数组，作为输出；全零速度时只清轮速，保留原舵角和反转标志
+ * @param forward_velocity_mps 车体X向前速度，单位m/s
+ * @param left_velocity_mps 车体Y向左速度，单位m/s，注意与应用层Y向右约定相反
+ * @param yaw_rate_dps 俯视逆时针为正的车体旋转速度，单位度/秒
+ * @param steering_actual_deg 四轮校零后的实际多圈舵角，单位度，轮序为左前/右前/右后/左后
+ * @param wheel_targets 四轮目标数组，作为输出；全零速度时只清轮速，保留原舵角和反转标志
  * @attention 两个数组均至少有4项且指针有效；输入必须为有限数，target应在首次调用前初始化。
  * @note 函数不检查电机在线状态、不执行轮速限幅、不发送报文，这些由底盘应用负责。
  *       采用正方形轮心布局；轮心距离、轮周长和减速比均来自geometry，不依赖应用宏。
  */
-void SwerveSolve(const SwerveGeometry_s *geometry, float vx, float vy, float wz_dps, const float actual_deg[4],
-                 SwerveTarget target[4]);
+void SwerveSolve(const SwerveGeometry_s *geometry, float forward_velocity_mps, float left_velocity_mps,
+                 float yaw_rate_dps, const float steering_actual_deg[4], SwerveTarget wheel_targets[4]);
 
 #endif

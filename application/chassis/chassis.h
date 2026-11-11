@@ -18,27 +18,27 @@
  */
 typedef struct
 {
-    chassis_mode_e mode;                 // 当前实际执行模式，保护停机时为无力。
-    uint8_t command_online;              // 本轮是否收到 CMD 消息，不代表遥控器在线。
-    uint8_t motors_online;               // 八电机全部有有效且未过期的反馈时为 1。
-    uint8_t ins_online;                  // INS 快照新鲜且航向、角速度数值正常。
-    uint8_t drive_online[4];            // 四个 M3508 反馈状态。
-    uint8_t steering_online[4];         // 四个 GM6020 反馈状态。
-    float yaw_deg;                      // 底盘 INS 航向，度。
-    float gyro_z_radps;                 // Z 轴角速度，rad/s，俯视逆时针为正。
-    float relative_yaw_deg;             // 本轮速度坐标转换使用的相对角，度。
-    float spin_reference_yaw_deg;       // 进入小陀螺时捕获的底盘朝向，度。
-    float spin_rate_ref_radps;          // 经角加速度限制后的旋转参考，rad/s。
-    float vx_body_mmps;                 // 车体系 X 向前目标，mm/s。
-    float vy_body_mmps;                 // 车体系 Y 向右目标，mm/s。
-    float wz_radps;                     // 实际送入运动学的角速度目标，rad/s。
-    float wheel_target_rpm[4];          // 驱动转子目标，经整车限速和舵向误差补偿。
-    float wheel_actual_rpm[4];          // 驱动转子实际 rpm，尚未乘减速比。
-    float steering_target_deg[4];       // 舵向多圈目标，度。
-    float steering_actual_deg[4];       // 舵向实际多圈角，已处理机械零位和方向，度。
+    chassis_mode_e mode;          ///< 当前实际执行模式，保护停机时为无力。
+    uint8_t command_online;       ///< 本轮是否收到 CMD 消息，不代表遥控器在线。
+    uint8_t motors_online;        ///< 八电机全部有有效且未过期的反馈时为 1。
+    uint8_t ins_online;           ///< INS 快照新鲜且航向、角速度数值正常。
+    uint8_t drive_online[4];      ///< 四个 M3508 反馈状态。
+    uint8_t steering_online[4];   ///< 四个 GM6020 反馈状态。
+    float yaw_deg;                ///< 底盘 INS 航向，度。
+    float gyro_z_radps;           ///< Z 轴角速度，rad/s，俯视逆时针为正。
+    float relative_yaw_deg;       ///< 本轮速度坐标转换使用的相对角，度。
+    float spin_reference_yaw_deg; ///< 进入小陀螺时捕获的底盘朝向，度。
+    float spin_rate_ref_radps;    ///< 经角加速度限制后的旋转参考，rad/s。
+    float vx_body_mmps;           ///< 车体系 X 向前目标，mm/s。
+    float vy_body_mmps;           ///< 车体系 Y 向右目标，mm/s。
+    float wz_radps;               ///< 实际送入运动学的角速度目标，rad/s。
+    float wheel_target_rpm[4];    ///< 驱动转子目标，经整车限速和舵向误差补偿。
+    float wheel_actual_rpm[4];    ///< 驱动转子实际 rpm，尚未乘减速比。
+    float steering_target_deg[4]; ///< 舵向多圈目标，度。
+    float steering_actual_deg[4]; ///< 舵向实际多圈角，已处理机械零位和方向，度。
 } SwerveDebug_s;
 
-extern SwerveDebug_s swerve_debug; // 应用层统一观测入口，调试时以读取为主
+extern SwerveDebug_s swerve_debug; ///< 应用层统一观测入口，调试时以读取为主
 
 /**
  * @brief 初始化四个驱动电机、四个舵向电机、底盘INS、裁判系统和超级电容
