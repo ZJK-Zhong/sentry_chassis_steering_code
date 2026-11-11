@@ -1,0 +1,66 @@
+build/
+build-cmake/
+build-wall/
+# Prerequisites
+*.d
+
+# Object files
+*.o
+*.ko
+*.obj
+*.elf
+
+# Linker output
+*.ilk
+*.map
+*.exp
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Libraries
+*.lib
+*.a
+!Middlewares/ST/ARM/DSP/Lib/*.a
+*.la
+*.lo
+
+# Shared objects (inc. Windows DLLs)
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Executables
+*.exe
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
+*.bin
+__pycache__/
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Kernel Module Compile Results
+*.mod*
+*.cmd
+.tmp_versions/
+modules.order
+Module.symvers
+Mkfile.old
+dkms.conf
+
+# debug information files
+*.dwo
+
+# Local beginner tutorial
+/.Doc/哨兵新手逐行调车教程.md
+/.Doc/哨兵电机数据流与整车控制链教程_连贯版.md
+/.Doc/哨兵所有电机目标值与反馈值详解_重写版.md

@@ -1,0 +1,64 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // Use the installed MSYS2 shell so the ARM compiler and make are available
+    // without requiring a global PATH change.
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build task",
+            "type": "shell",
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "shell": {
+                    "executable": "D:\\msys64\\usr\\bin\\bash.exe",
+                    "args": ["--login", "-c"]
+                }
+            },
+            "command": "export PATH=/mingw64/bin:$PATH && cd \"$(cygpath -u '${workspaceFolder}')\" && mingw32-make -j24",
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "download dap",
+            "type": "shell",
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "shell": {
+                    "executable": "D:\\msys64\\usr\\bin\\bash.exe",
+                    "args": ["--login", "-c"]
+                }
+            },
+            "command": "export PATH=/mingw64/bin:$PATH && cd \"$(cygpath -u '${workspaceFolder}')\" && mingw32-make -j24 && mingw32-make download_dap",
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            }
+        },
+        {
+            "label": "download jlink",
+            "type": "shell",
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "shell": {
+                    "executable": "D:\\msys64\\usr\\bin\\bash.exe",
+                    "args": ["--login", "-c"]
+                }
+            },
+            "command": "export PATH=/mingw64/bin:$PATH && cd \"$(cygpath -u '${workspaceFolder}')\" && mingw32-make -j24 && mingw32-make download_jlink",
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            }
+        },
+        {
+            "label": "log",
+            "type": "shell",
+            "command": "JlinkRTTClient",
+            "args": [],
+            "problemMatcher": []
+        }
+    ]
+}
