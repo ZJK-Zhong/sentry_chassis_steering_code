@@ -70,12 +70,68 @@ static const ChassisMotionConfig_s chassis_motion_config = {
     .follow_gain_radps_per_deg = 0.15f,
 };
 SwerveDebug_s swerve_debug;
+ChassisMoveDebug_s chassis_move; ///< 完整八电机调试快照，不参与控制计算。
 static const SwerveGeometry_s swerve_geometry = {.center_to_wheel_m = CHASSIS_CENTER_TO_WHEEL,
                                                  .wheel_perimeter_m = CHASSIS_MOTOT_PER,
                                                  .drive_reduction = SWERVE_DRIVE_REDUCTION};
 static SwerveTarget wheel_targets[4];  ///< 运动学输出，零速时保留其中上一轮的舵向目标
 static float steering_feedback_deg[4]; ///< 校零且修正方向的多圈舵角，同时作为角度环反馈
 static const uint16_t steering_zero_encoders[4] = SWERVE_ZERO_ENCODERS; ///< 四个轮子机械朝前时的编码器刻度
+
+/**
+ * @brief 采集八电机完整反馈副本，并汇总本轮目标与执行状态供Orbit整体展开。
+ * @note 在ChassisInit设备注册完成后及每轮任务结束时调用。
+ *       关中断只保护原测量结构与时间戳的复制，不保证八电机同时采样。
+ *       PID与电流输出由MotorTask更新，stop_flag只能表示应用当前的启停请求。
+ */
+static void PublishChassisMoveDebug(void)
+{
+    chassis_move.state = swerve_debug;
+    chassis_move.command = chassis_command;
+    uint32_t interrupt_mask = __get_PRIMASK();
+    __disable_irq();
+    uint32_t sampled_at_ms = HAL_GetTick();
+    for (unsigned i = 0; i < 4; ++i)
+    {
+        DJIMotorInstance *drive_motor = drive_motors[i];
+        DJIMotorInstance *steering_motor = steering_motors[i];
+        ChassisDriveMotorDebug_s *drive_snapshot = &chassis_move.drive_motors[i];
+        ChassisSteeringMotorDebug_s *steering_snapshot = &chassis_move.steering_motors[i];
+
+        drive_snapshot->measure = drive_motor->measure;
+        drive_snapshot->last_rx_ms = drive_motor->last_rx_ms;
+        drive_snapshot->feedback_seen = drive_motor->feedback_seen;
+        drive_snapshot->online = drive_motor->feedback_seen &&
+                                 (uint32_t)(sampled_at_ms - drive_motor->last_rx_ms) <= SWERVE_MOTOR_TIMEOUT_MS;
+        drive_snapshot->stop_flag = drive_motor->stop_flag;
+
+        steering_snapshot->measure = steering_motor->measure;
+        steering_snapshot->last_rx_ms = steering_motor->last_rx_ms;
+        steering_snapshot->feedback_seen = steering_motor->feedback_seen;
+        steering_snapshot->online = steering_motor->feedback_seen &&
+                                    (uint32_t)(sampled_at_ms - steering_motor->last_rx_ms) <= SWERVE_MOTOR_TIMEOUT_MS;
+        steering_snapshot->stop_flag = steering_motor->stop_flag;
+    }
+    __set_PRIMASK(interrupt_mask);
+
+    for (unsigned i = 0; i < 4; ++i)
+    {
+        ChassisDriveMotorDebug_s *drive_snapshot = &chassis_move.drive_motors[i];
+        ChassisSteeringMotorDebug_s *steering_snapshot = &chassis_move.steering_motors[i];
+        drive_snapshot->actual_speed_rpm = drive_snapshot->measure.speed_aps / 6.0f;
+        drive_snapshot->target_speed_rpm = chassis_state.wheel_target_rpm[i];
+        drive_snapshot->can_bus = drive_motors[i]->motor_can_instance->can_handle == &hcan1 ? 1u : 2u;
+        drive_snapshot->motor_id = drive_motors[i]->motor_can_instance->tx_id;
+
+        steering_snapshot->actual_angle_deg =
+            -(steering_snapshot->measure.total_angle - steering_zero_encoders[i] * (360.0f / 8192.0f));
+        steering_snapshot->target_angle_deg = chassis_state.steering_target_deg[i];
+        steering_snapshot->zero_encoder = steering_zero_encoders[i];
+        steering_snapshot->can_bus = steering_motors[i]->motor_can_instance->can_handle == &hcan1 ? 1u : 2u;
+        steering_snapshot->motor_id = steering_motors[i]->motor_can_instance->tx_id;
+    }
+    chassis_move.updated_at_ms = sampled_at_ms;
+}
 
 /** @brief 将本轮私有运行状态复制到观测快照；控制路径不读取快照。 */
 static void PublishChassisDebug(void)
@@ -100,6 +156,7 @@ static void PublishChassisDebug(void)
            sizeof(swerve_debug.steering_target_deg));
     memcpy(swerve_debug.steering_actual_deg, chassis_state.steering_actual_deg,
            sizeof(swerve_debug.steering_actual_deg));
+    PublishChassisMoveDebug();
 }
 
 referee_info_t *get_referr_data_pr(void)

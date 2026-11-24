@@ -263,6 +263,64 @@ static void TestIndependentMotionContexts(void)
     CHECK(memcmp(second_snapshot, &second, sizeof(second)) == 0);
 }
 
+/* Distinct physical frames must stay in the correct wheel/axis snapshot.
+ * Watch writes must never alias live measurement or control storage. */
+static void TestChassisMoveDebug(void)
+{
+    for (unsigned i = 0; i < 4; ++i)
+    {
+        motor_frame(drive_motors[i]->motor_can_instance, 100 + i, 120 + i * 10);
+        motor_frame(steering_motors[i]->motor_can_instance, steering_zero_encoders[i], -40 - i * 10);
+        drive_motors[i]->measure.real_current = 1000 + i;
+        drive_motors[i]->measure.temperature = 30 + i;
+        steering_motors[i]->measure.real_current = -2000 - i;
+        steering_motors[i]->measure.temperature = 40 + i;
+    }
+    UpdateChassisFeedback();
+    PublishChassisDebug();
+    CHECK(chassis_move.updated_at_ms == test_tick);
+    for (unsigned i = 0; i < 4; ++i)
+    {
+        CHECK(memcmp(&chassis_move.drive_motors[i].measure, &drive_motors[i]->measure,
+                     sizeof(DJI_Motor_Measure_s)) == 0);
+        CHECK(memcmp(&chassis_move.steering_motors[i].measure, &steering_motors[i]->measure,
+                     sizeof(DJI_Motor_Measure_s)) == 0);
+        CHECK(chassis_move.drive_motors[i].online && chassis_move.steering_motors[i].online);
+        CHECK(chassis_move.drive_motors[i].motor_id == i + 1);
+        CHECK(chassis_move.steering_motors[i].motor_id == i + 1);
+        CHECK(chassis_move.drive_motors[i].can_bus == 1);
+        CHECK(chassis_move.steering_motors[i].can_bus == 2);
+        CHECK(chassis_move.steering_motors[i].zero_encoder == steering_zero_encoders[i]);
+        NEAR(chassis_move.drive_motors[i].actual_speed_rpm, drive_motors[i]->measure.speed_aps / 6, 0.001f);
+        NEAR(chassis_move.steering_motors[i].actual_angle_deg, chassis_state.steering_actual_deg[i], 0.001f);
+        NEAR(chassis_move.drive_motors[i].target_speed_rpm, chassis_state.wheel_target_rpm[i], 0.001f);
+        NEAR(chassis_move.steering_motors[i].target_angle_deg, chassis_state.steering_target_deg[i], 0.001f);
+    }
+    DJI_Motor_Measure_s drive_before = drive_motors[0]->measure;
+    DJI_Motor_Measure_s steering_before = steering_motors[0]->measure;
+    memset(&chassis_move, 0xff, sizeof(chassis_move));
+    CHECK(memcmp(&drive_before, &drive_motors[0]->measure, sizeof(drive_before)) == 0);
+    CHECK(memcmp(&steering_before, &steering_motors[0]->measure, sizeof(steering_before)) == 0);
+    ChassisTask();
+    CHECK(chassis_move.state.mode == CHASSIS_ZERO_FORCE);
+    for (unsigned i = 0; i < 4; ++i)
+    {
+        CHECK(chassis_move.drive_motors[i].stop_flag == MOTOR_STOP);
+        CHECK(chassis_move.steering_motors[i].stop_flag == MOTOR_STOP);
+        CHECK(chassis_move.drive_motors[i].target_speed_rpm == 0);
+    }
+    test_tick += SWERVE_MOTOR_TIMEOUT_MS + 1;
+    ChassisTask();
+    CHECK(!chassis_move.state.motors_online);
+    for (unsigned i = 0; i < 4; ++i)
+    {
+        CHECK(!chassis_move.drive_motors[i].online && !chassis_move.steering_motors[i].online);
+        CHECK(chassis_move.drive_motors[i].feedback_seen && chassis_move.steering_motors[i].feedback_seen);
+        CHECK(chassis_move.drive_motors[i].measure.temperature == 30 + i);
+    }
+    host_call(4, "PASS: grouped eight-motor debug feedback, wheel mapping, zero force, timeout and watch isolation\n");
+}
+
 void test_main(void)
 {
     TestIndependentMotionContexts();
@@ -276,6 +334,11 @@ void test_main(void)
     NEAR(alternate_target[0].speed_rpm, 30.0f / (CHASSIS_MOTOT_PER * SWERVE_DRIVE_REDUCTION), 0.01f);
     RobotCMDInit();
     ChassisInit();
+    for (unsigned i = 0; i < 4; ++i)
+    {
+        CHECK(!chassis_move.drive_motors[i].feedback_seen && !chassis_move.drive_motors[i].online);
+        CHECK(!chassis_move.steering_motors[i].feedback_seen && !chassis_move.steering_motors[i].online);
+    }
     memset(&swerve_debug, 0xff, sizeof(swerve_debug)); // Observe-only data must not drive_motors the controller.
 #if SWERVE_COMMAND_SOURCE == SWERVE_COMMAND_SOURCE_LOCAL_RC
     CHECK(test_can_count == 9);
@@ -468,5 +531,6 @@ void test_main(void)
     CHECK(cap_frame[3] == 0 && cap_frame[4] == 0);
     CHECK(!chassis_feedback_data.referee_online);
     host_call(4, "PASS: real supercap CAN mapping, referee forwarding, 10Hz TX and first-frame/short-frame/timeout checks\n");
+    TestChassisMoveDebug();
     finish(0);
 }

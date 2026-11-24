@@ -114,3 +114,5 @@ steering_motors[0]->measure
 
 旋转参考和坐标转换已拆至[chassis_motion](chassis_motion.md)。
 `ChassisTask`只编排反馈、保护、运动更新、轮组执行、功率更新和消息发布。
+
+八电机完整反馈可在Watch展开`chassis_move`，字段和单位见[统一电机调试入口](chassis_debug.md)。

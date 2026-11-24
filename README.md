@@ -19,3 +19,5 @@
 
 旋转参考和坐标变换已独立为[运动处理](application/chassis/chassis_motion.md)，
 设备采集、执行保护和功率处理仍由底盘应用编排。
+
+八电机完整反馈可在Watch展开`chassis_move`，字段和单位见[统一电机调试入口](application/chassis/chassis_debug.md)。

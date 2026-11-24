@@ -50,13 +50,14 @@
 
 | Watch表达式 | 内容 |
 | --- | --- |
+| `chassis_move` | 按驱动/舵向分组的八电机完整反馈、目标、在线状态和底盘命令 |
 | `swerve_debug` | 底盘模式、在线状态、八电机目标/反馈、姿态和旋转参考 |
 | `gimbal_control` | 拨杆请求、实际执行模式、解锁状态及三类目标 |
 | `gimbal_feedback_data.gimbal_imu_data` | 云台板本地完整INS姿态，展开一个结构即可查看 |
 | `INS` | 原INS模块数据；使用时同时核对在线/新鲜度 |
 | `board_link_debug` | 板间接收状态和最近完整收帧时间 |
 
-`swerve_debug`、`gimbal_control`、`board_link_debug`是观测副本，控制不读取它们。
+`chassis_move`、`swerve_debug`、`gimbal_control`、`board_link_debug`是观测副本，控制不读取它们。
 异步Watch不能保证跨字段原子一致；改写观测副本不能改变解锁状态或电机目标。
 `gimbal_feedback_data`是云台应用发布的反馈，不是板间发送的IMU报文。
 板间端口、报文ID及全部设备接线见[CAN分配](CAN_ALLOCATION.md)。

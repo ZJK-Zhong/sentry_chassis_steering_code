@@ -22,7 +22,7 @@ typedef struct
 
 /**
  * @brief 一套独立运动状态及本轮输出，不作为板间报文使用。
- * @note 参考方向只在旋转入口捕获；此状态与Ozone快照独立。
+ * @note 参考方向只在旋转入口捕获；此状态与Orbit快照独立。
  */
 typedef struct
 {
