@@ -28,6 +28,28 @@ CMD只使用类型明确的读写接口，保留拨杆、解锁、视觉和整�
 云台`gimbal_control.chassis_online`表示有效底盘反馈，`armed`表示整车联锁和解锁结果。
 无需再从CMD文件里寻找CANComm实例；私有board_comm仅用于通信模块内部。
 
+`board_link_debug`还包含本机实际注册的`can_bus`、`tx_id/rx_id`、`tx_data_len/rx_data_len`，
+以及`can_error_code`（HAL缓存）、`can_error_status`（bxCAN ESR实时快照）。
+正常云台为CAN1、发送0x312/26字节、接收0x311/28字节；底盘方向和长度相反。
+`traffic`只记录本地通信诊断，不进入线上报文，不参与解锁或运动判定：
+
+| 字段 | 含义与定位方法 |
+| --- | --- |
+| `tx_message_count` | 应用提交给CANComm的消息数，应持续增长 |
+| `tx_frame_queued_count` | 成功入发送邮箱的分包数；不等于对端已收到或确认 |
+| `tx_frame_fail_count` | 发送调用失败数，增加时先检查本板CAN状态与负载 |
+| `rx_frame_count` | 到达该通信实例回调的原始帧数，含无法组包的帧 |
+| `rx_message_count` | 通过完整长度、尾标和CRC检查的消息数 |
+| `rx_crc_error_count` | 完整消息CRC错误数 |
+| `rx_format_error_count` | 声明长度、总长度、尾标或DLC错误数 |
+| `rx_partial_timeout_count` | 半包超时被丢弃次数 |
+| `last_rx_dlc / last_rx_frame` | 最近一帧的长度与原始内容；不是完整消息 |
+
+若`last_rx_ms=0`且`rx_frame_count=0`，说明尚无帧到达这个接收实例，
+应结合对端发送计数检查实际固件、端口、ID、过滤器、总线与中断；
+若原始帧增长而完整消息不增长，则结合长度、CRC和半包超时计数检查组包。
+`rx_partial_len`和`last_part_ms`提供当前半包进度；所有计数上电清零，自然回绕。
+
 ## 验证边界
 
 原集成测试继续覆盖分包、CRC、断包恢复、50/100ms超时、模式变化即时零力和20ms反馈节流。

@@ -95,13 +95,14 @@ if ("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
     add_compile_options(-Ofast)
 elseif ("${CMAKE_BUILD_TYPE}" STREQUAL "RelWithDebInfo")
     message(STATUS "Maximum optimization for speed, debug info included")
-    add_compile_options(-Ofast -g)
+    add_compile_options(-Ofast -g -gdwarf-4)
 elseif ("${CMAKE_BUILD_TYPE}" STREQUAL "MinSizeRel")
     message(STATUS "Maximum optimization for size")
     add_compile_options(-Os)
 else ()
     message(STATUS "Minimal optimization, debug info included")
-    add_compile_options(-Og -g -gdwarf-2)
+    # Orbit读取DWARF4常量成员偏移，避免DWARF2结构体字段地址重叠。
+    add_compile_options(-Og -g -gdwarf-4)
     add_definitions(-DESC_DEBUG) # ESC Debug
 endif ()
 

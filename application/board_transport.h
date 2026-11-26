@@ -6,12 +6,23 @@
 #ifndef BOARD_TRANSPORT_H
 #define BOARD_TRANSPORT_H
 #include "robot_def.h"
+#include "can_comm.h"
 
 /** @brief 板间接收观测副本；不作为解锁或运动判据，控制应使用读取接口的返回值。 */
 typedef struct
 {
     uint8_t rx_online;   ///< 最近一次读取时，完整消息是否在有效期内。
     uint32_t last_rx_ms; ///< 完整CRC正确消息的实际接收时间，ms；首帧前为0。
+    uint8_t can_bus;     ///< 本板板间端口编号，1或2。
+    uint16_t tx_id;      ///< 实际注册的发送标准ID。
+    uint16_t rx_id;      ///< 实际注册的接收标准ID。
+    uint8_t tx_data_len; ///< 本板发送消息载荷长度，不含CANComm封装。
+    uint8_t rx_data_len; ///< 本板期望的接收载荷长度。
+    uint8_t rx_partial_len; ///< 当前半包已收长度，仅用于观察。
+    uint32_t last_part_ms; ///< 最近一个有效DLC原始帧的接收时刻。
+    uint32_t can_error_code; ///< HAL缓存的错误标志，不代表实时总线状态。
+    uint32_t can_error_status; ///< bxCAN ESR快照，含实时总线状态和收发错误计数。
+    CANCommDiagnostics_s traffic; ///< 原始帧、完整消息、发送失败及校验错误计数。
 } BoardTransportDebug_s;
 extern BoardTransportDebug_s board_link_debug;
 

@@ -21,6 +21,21 @@
 #define CAN_COMM_TAIL 'e'        // 帧尾
 #define CAN_COMM_OFFSET_BYTES 4  // 's'+ datalen + 'e' + crc8
 
+/** @brief 本地诊断计数，不经CAN发送；入发送邮箱不等于对端已收到或确认。 */
+typedef struct
+{
+    uint32_t tx_message_count;      ///< 调用CANCommSend的消息数。
+    uint32_t tx_frame_queued_count; ///< CANTransmit报告入邮箱成功的分包数。
+    uint32_t tx_frame_fail_count;   ///< CANTransmit报告失败的分包数。
+    uint32_t rx_frame_count;        ///< 到达本实例回调的原始帧数，包含非法/不完整帧。
+    uint32_t rx_message_count;      ///< 完整长度、尾标和CRC均正确的消息数。
+    uint32_t rx_crc_error_count;    ///< 完整消息CRC错误数。
+    uint32_t rx_format_error_count; ///< DLC、声明长度、总长度或尾标错误数。
+    uint32_t rx_partial_timeout_count; ///< 超时丢弃半包的次数。
+    uint8_t last_rx_dlc;            ///< 最近到达本实例的原始帧DLC。
+    uint8_t last_rx_frame[8];       ///< 最近原始帧，短帧剩余字节清零。
+} CANCommDiagnostics_s;
+
 #pragma pack(1)
 /* CAN comm 结构体, 拥有CAN comm的app应该包含一个CAN comm指针 */
 typedef struct
@@ -45,6 +60,7 @@ typedef struct
     uint32_t last_part_ms; // 分包接收时间；用于丢包后丢弃过期的半包。
 
     DaemonInstance* comm_daemon;
+    CANCommDiagnostics_s diagnostics; ///< 本实例独立计数，上电清零，协议布局不变。
 } CANCommInstance;
 #pragma pack()
 

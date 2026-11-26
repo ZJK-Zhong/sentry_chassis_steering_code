@@ -29,9 +29,20 @@ static void CANCommRxCallback(CANInstance *_instance)
 
     // 丢失分包后丢弃过期的半包；短帧不能读取不存在的长度字节。
     uint32_t now = HAL_GetTick();
-    if (_instance->rx_len == 0 || _instance->rx_len > 8) return;
+    comm->diagnostics.rx_frame_count++;
+    comm->diagnostics.last_rx_dlc = _instance->rx_len;
+    memset(comm->diagnostics.last_rx_frame, 0, sizeof(comm->diagnostics.last_rx_frame));
+    if (_instance->rx_len == 0 || _instance->rx_len > 8)
+    {
+        comm->diagnostics.rx_format_error_count++;
+        return;
+    }
+    memcpy(comm->diagnostics.last_rx_frame, _instance->rx_buff, _instance->rx_len);
     if (comm->recv_state && (uint32_t)(now - comm->last_part_ms) > 20u)
+    {
+        comm->diagnostics.rx_partial_timeout_count++;
         CANCommResetRx(comm);
+    }
     comm->last_part_ms = now;
 
     /* 当前接收状态判断 */
@@ -42,7 +53,10 @@ static void CANCommRxCallback(CANInstance *_instance)
             comm->recv_state = 1; // 设置接收状态为1,说明已经开始接收
         }
         else
+        {
+            comm->diagnostics.rx_format_error_count++;
             return; // 直接跳过即可
+        }
     }
 
     if (comm->recv_state) // 已经收到过帧头
@@ -50,6 +64,7 @@ static void CANCommRxCallback(CANInstance *_instance)
         // 如果已经接收到的长度加上当前一包的长度大于总buf len,说明接收错误
         if (comm->cur_recv_len + _instance->rx_len > comm->recv_buf_len)
         {
+            comm->diagnostics.rx_format_error_count++;
             CANCommResetRx(comm);
             return; // 重置状态然后返回
         }
@@ -70,13 +85,19 @@ static void CANCommRxCallback(CANInstance *_instance)
                     comm->update_flag = 1;           // 数据更新flag置为1
                     comm->last_rx_ms = now;
                     comm->receive_seen = 1;
+                    comm->diagnostics.rx_message_count++;
                     DaemonReload(comm->comm_daemon); // 重载daemon,避免数据更新后一直不被读取而导致数据更新不及时
                 }
                 else
                 {
+                    comm->diagnostics.rx_crc_error_count++;
                     comm->receive_seen = 0; // 完整坏包立即撤销旧目标，等待下一条有效消息。
                     comm->update_flag = 0;
                 }
+            }
+            else
+            {
+                comm->diagnostics.rx_format_error_count++;
             }
             CANCommResetRx(comm);
             return; // 重置状态然后返回
@@ -87,6 +108,7 @@ static void CANCommRxCallback(CANInstance *_instance)
 static void CANCommLostCallback(void *cancomm)
 {
     CANCommInstance *comm = (CANCommInstance *)cancomm;
+    if (comm->recv_state) comm->diagnostics.rx_partial_timeout_count++;
     CANCommResetRx(comm);
     comm->receive_seen = 0;
     comm->update_flag = 0;
@@ -121,6 +143,7 @@ CANCommInstance *CANCommInit(CANComm_Init_Config_s *comm_config)
 
 void CANCommSend(CANCommInstance *instance, uint8_t *data)
 {
+    instance->diagnostics.tx_message_count++;
     static uint8_t crc8;
     static uint8_t send_len;
     // 将data copy到raw_sendbuf中,计算crc8
@@ -134,7 +157,10 @@ void CANCommSend(CANCommInstance *instance, uint8_t *data)
         send_len = instance->send_buf_len - i >= 8 ? 8 : instance->send_buf_len - i;
         CANSetDLC(instance->can_ins, send_len);
         memcpy(instance->can_ins->tx_buff, instance->raw_sendbuf + i, send_len);
-        CANTransmit(instance->can_ins, 1);
+        if (CANTransmit(instance->can_ins, 1))
+            instance->diagnostics.tx_frame_queued_count++;
+        else
+            instance->diagnostics.tx_frame_fail_count++;
     }
 }
 

@@ -36,11 +36,31 @@ void BoardTransportInit(void)
     memset(&board_link_debug, 0, sizeof(board_link_debug));
 }
 
+/** @brief 复制本地端口和诊断数据，不改变通信在线标志、错误寄存器或控制状态。 */
+static void UpdateTrafficDebug(void)
+{
+    CANInstance *can = board_link_instance->can_ins;
+    uint32_t interrupt_mask = __get_PRIMASK();
+    __disable_irq();
+    board_link_debug.can_bus = can->can_handle == &hcan1 ? 1u : 2u;
+    board_link_debug.tx_id = can->txconf.StdId;
+    board_link_debug.rx_id = can->rx_id;
+    board_link_debug.tx_data_len = board_link_instance->send_data_len;
+    board_link_debug.rx_data_len = board_link_instance->recv_data_len;
+    board_link_debug.rx_partial_len = board_link_instance->cur_recv_len;
+    board_link_debug.last_part_ms = board_link_instance->last_part_ms;
+    board_link_debug.can_error_code = can->can_handle->ErrorCode;
+    board_link_debug.can_error_status = can->can_handle->Instance != NULL ? can->can_handle->Instance->ESR : 0;
+    board_link_debug.traffic = board_link_instance->diagnostics;
+    __set_PRIMASK(interrupt_mask);
+}
+
 /** @brief 只记录快照读取结果；不以调试变量延长通信有效期。 */
 static void UpdateLinkDebug(uint8_t online)
 {
     board_link_debug.rx_online = online;
     board_link_debug.last_rx_ms = board_link_instance->last_rx_ms;
+    UpdateTrafficDebug();
 }
 
 #ifdef CHASSIS_BOARD
@@ -62,6 +82,7 @@ void BoardTransportSendFeedback(const Chassis_Upload_Data_s *feedback)
     {
         CANCommSend(board_link_instance, (uint8_t *)feedback);
         last_board_tx_ms = current_time_ms;
+        UpdateTrafficDebug();
     }
 }
 #else
@@ -89,6 +110,7 @@ void BoardTransportSendCommand(const Chassis_Ctrl_Cmd_s *command, uint8_t immedi
     {
         CANCommSend(board_link_instance, (uint8_t *)command);
         last_board_tx_ms = current_time_ms;
+        UpdateTrafficDebug();
     }
 }
 #endif
